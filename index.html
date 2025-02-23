@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Portefeuille</title>
+    <!-- Lien vers FontAwesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 400px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .balance {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .balance h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .balance p {
+            font-size: 1.5em;
+            color: #28a745;
+            margin: 0;
+        }
+
+        .fees {
+            color: #dc3545;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        /* Styles pour les modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .modal-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .modal-icon.success {
+            color: #28a745;
+        }
+
+        .modal-icon.error {
+            color: #dc3545;
+        }
+
+        .modal-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-button:hover {
+            background-color: #218838;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .history-table th, .history-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .history-table th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Section Connexion -->
+    <div id="auth-section">
+        <h2>Connexion</h2>
+        <input type="tel" id="login-phone" placeholder="Numéro de téléphone" required>
+        <input type="password" id="login-password" placeholder="Mot de passe" required>
+        <button onclick="loginUser()">Se connecter</button>
+        <p><a href="#" onclick="showForgotPasswordModal()">Mot de passe oublié ?</a></p>
+    </div>
+
+    <!-- Section Gestion de Compte (cachée par défaut) -->
+    <div id="account-section" class="hidden">
+        <h2>Gestion de Compte</h2>
+
+        <!-- Section Solde -->
+        <div class="balance">
+            <h3>Solde Actuel</h3>
+            <p id="balanceAmount">0 XOF</p>
+        </div>
+
+        <!-- Bouton pour afficher l'historique -->
+        <button onclick="showHistoryModal()">Historique des opérations</button>
+
+        <!-- Formulaire pour les opérations -->
+        <form id="operationForm">
+            <label for="operationType">Type d'opération:</label>
+            <select id="operationType" name="operationType" required>
+                <option value="depot">Dépôt</option>
+                <option value="transfert-national">Transfert National</option>
+                <option value="transfert-international">Transfert International</option>
+                <option value="retrait">Retrait</option>
+                <option value="internet">Achat de Forfait Internet</option>
+                <option value="credit">Achat de Crédit d'Appel</option>
+            </select>
+
+            <!-- Champs dynamiques -->
+            <div id="dynamicFields"></div>
+
+            <!-- Affichage des frais de transfert -->
+            <div id="feesInfo" class="fees hidden"></div>
+
+            <button type="submit">Valider</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal pour afficher les messages -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <div id="modal-icon" class="modal-icon"></div>
+        <p id="modal-message"></p>
+        <button class="modal-button" onclick="closeModal()">Fermer</button>
+    </div>
+</div>
+
+<!-- Modal pour la validation par code PIN -->
+<div id="pinModal" class="modal">
+    <div class="modal-content">
+        <h3>Validation par code PIN</h3>
+        <input type="password" id="pinInput" placeholder="Entrez votre code PIN" required>
+        <button class="modal-button" onclick="validatePin()">Valider</button>
+        <button class="modal-button" onclick="closePinModal()">Annuler</button>
+    </div>
+</div>
+
+<!-- Modal pour l'historique des opérations -->
+<div id="historyModal" class="modal">
+    <div class="modal-content">
+        <h3>Historique des opérations</h3>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Montant (XOF)</th>
+                    <th>Bénéficiaire</th>
+                </tr>
+            </thead>
+            <tbody id="historyTableBody">
+                <!-- Les lignes de l'historique seront ajoutées ici dynamiquement -->
+            </tbody>
+        </table>
+        <button class="modal-button" onclick="closeHistoryModal()">Fermer</button>
+    </div>
+</div>
+
+<!-- Modal pour le mot de passe oublié -->
+<div id="forgotPasswordModal" class="modal">
+    <div class="modal-content">
+        <h3>Mot de passe oublié</h3>
+        <input type="tel" id="forgotPhone" placeholder="Numéro de téléphone" required>
+        <button class="modal-button" onclick="resetPassword()">Réinitialiser</button>
+        <button class="modal-button" onclick="closeForgotPasswordModal()">Annuler</button>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    let pendingOperation = null; // Stocke l'opération en attente de validation par PIN
+    let operationsHistory = []; // Historique des opérations
+
+    // URL de l'API Google Apps Script
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbxtMhHgFaF-qp6Idpff3WrxGPhFPNjLm70ZixCRn3Dirt5xdqO9CfUTtfHQCB1oFMXtfA/exec';
+
+    // Fonction pour afficher une modal
+    function showModal(iconClass, message) {
+        const modal = document.getElementById('modal');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalMessage = document.getElementById('modal-message');
+
+        modalIcon.className = `modal-icon ${iconClass}`;
+        modalIcon.innerHTML = `<i class="${iconClass === 'success' ? 'fas fa-check-circle' : 'fas fa-times-circle'}"></i>`;
+        modalMessage.textContent = message;
+        modal.style.display = 'flex';
+    }
+
+    // Fonction pour fermer la modal
+    function closeModal() {
+        const modal = document.getElementById('modal');
+        modal.style.display = 'none';
+    }
+
+    // Fonction pour afficher la modal de code PIN
+    function showPinModal() {
+        const pinModal = document.getElementById('pinModal');
+        pinModal.style.display = 'flex';
+    }
+
+    // Fonction pour fermer la modal de code PIN
+    function closePinModal() {
+        const pinModal = document.getElementById('pinModal');
+        pinModal.style.display = 'none';
+    }
+
+    // Fonction pour afficher la modal d'historique
+    function showHistoryModal() {
+        const historyModal = document.getElementById('historyModal');
+        const historyTableBody = document.getElementById('historyTableBody');
+
+        // Vider le tableau avant de le remplir
+        historyTableBody.innerHTML = '';
+
+        // Ajouter chaque opération dans le tableau
+        operationsHistory.forEach(op => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${op.date}</td>
+                <td>${op.type}</td>
+                <td>${op.amount}</td>
+                <td>${op.recipient || 'N/A'}</td>
+            `;
+            historyTableBody.appendChild(row);
+        });
+
+        // Afficher la modal
+        historyModal.style.display = 'flex';
+    }
+
+    // Fonction pour fermer la modal d'historique
+    function closeHistoryModal() {
+        const historyModal = document.getElementById('historyModal');
+        historyModal.style.display = 'none';
+    }
+
+    // Fonction pour afficher la modal de mot de passe oublié
+    function showForgotPasswordModal() {
+        const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        forgotPasswordModal.style.display = 'flex';
+    }
+
+    // Fonction pour fermer la modal de mot de passe oublié
+    function closeForgotPasswordModal() {
+        const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        forgotPasswordModal.style.display = 'none';
+    }
+
+    // Fonction pour réinitialiser le mot de passe
+    function resetPassword() {
+        const phone = document.getElementById('forgotPhone').value;
+
+        if (phone) {
+            // Simuler l'envoi d'un SMS ou e-mail de réinitialisation
+            showModal('success', 'Un lien de réinitialisation a été envoyé à votre numéro.');
+            closeForgotPasswordModal();
+        } else {
+            showModal('error', 'Veuillez entrer votre numéro de téléphone.');
+        }
+    }
+
+    // Fonction pour valider le code PIN
+    function validatePin() {
+        const pinInput = document.getElementById('pinInput').value;
+
+        if (pinInput === "1234") { // Code PIN simulé
+            closePinModal();
+            processPendingOperation(); // Traiter l'opération en attente
+        } else {
+            showModal('error', 'Code PIN incorrect.');
+        }
+    }
+
+    // Fonction pour traiter l'opération en attente
+    function processPendingOperation() {
+        console.log("Début de processPendingOperation");
+        const { operationType, amount, recipientPhone, country, service } = pendingOperation;
+
+        fetch(apiUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'operation',
+                phone: currentUser.phone,
+                operationType: operationType,
+                amount: amount,
+                recipientPhone: recipientPhone,
+                country: country,
+                service: service
+            }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log("Réponse reçue du serveur :", response);
+            return response.json();
+        })
+        .then(data => {
+            console.log("Données reçues du serveur :", data);
+            if (data.status === 'success') {
+                currentUser.balance = data.user.balance;
+                updateBalance();
+                showModal('success', 'Opération réussie !');
+                fetchHistory(); // Mettre à jour l'historique
+            } else {
+                showModal('error', data.message || 'Erreur lors de l\'opération.');
+            }
+        })
+        .catch(error => {
+            console.error("Erreur lors de l'opération :", error);
+            showModal('error', 'Erreur de connexion. Vérifiez votre réseau.');
+        });
+    }
+
+    // Fonction pour envoyer une notification
+    function sendNotification(operationType, amount, recipientPhone) {
+        const message = `Opération réussie : ${operationType} de ${amount} XOF vers ${recipientPhone || 'N/A'}`;
+        console.log(`Notification envoyée : ${message}`);
+    }
+
+    // Fonction de connexion
+    function loginUser() {
+        const phone = document.getElementById('login-phone').value;
+        const password = document.getElementById('login-password').value;
+
+        if (phone && password) {
+            fetch(apiUrl + `?action=login&phone=${phone}&password=${password}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        currentUser = data.user;
+                        document.getElementById('auth-section').classList.add('hidden');
+                        document.getElementById('account-section').classList.remove('hidden');
+                        updateBalance();
+                        fetchHistory(); // Charger l'historique
+                        showModal('success', 'Connexion réussie !');
+                    } else {
+                        showModal('error', 'Numéro ou mot de passe incorrect.');
+                    }
+                })
+                .catch(() => showModal('error', 'Erreur lors de la connexion.'));
+        } else {
+            showModal('error', 'Veuillez remplir tous les champs.');
+        }
+    }
+
+    // Mettre à jour le solde affiché
+    function updateBalance() {
+        document.getElementById('balanceAmount').textContent = `${currentUser.balance.toFixed(2)} XOF`;
+    }
+
+    // Charger l'historique des opérations
+    function fetchHistory() {
+        fetch(apiUrl + `?action=getHistory&phone=${currentUser.phone}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    operationsHistory = data.history;
+                    showHistoryModal(); // Afficher l'historique après le chargement
+                }
+            })
+            .catch(() => showModal('error', 'Erreur lors du chargement de l\'historique.'));
+    }
+
+    // Gestion des champs dynamiques
+    document.getElementById('operationType').addEventListener('change', function() {
+        const operationType = this.value;
+        const dynamicFields = document.getElementById('dynamicFields');
+        const feesInfo = document.getElementById('feesInfo');
+        let fieldsHTML = '';
+
+        if (operationType === 'depot') {
+            fieldsHTML = `
+                <label for="amount">Montant (XOF):</label>
+                <input type="number" id="amount" name="amount" required min="1000" max="1000000">
+            `;
+            feesInfo.classList.add('hidden');
+        } else if (operationType === 'transfert-national') {
+            fieldsHTML = `
+                <label for="recipientPhone">Numéro du bénéficiaire:</label>
+                <input type="tel" id="recipientPhone" name="recipientPhone" required minlength="8">
+
+                <label for="amount">Montant (XOF):</label>
+                <input type="number" id="amount" name="amount" required min="500" max="500000">
+            `;
+            feesInfo.textContent = "Frais de transfert : 0%";
+            feesInfo.classList.remove('hidden');
+        } else if (operationType === 'transfert-international') {
+            fieldsHTML = `
+                <label for="recipientPhone">Numéro du bénéficiaire:</label>
+                <input type="tel" id="recipientPhone" name="recipientPhone" required minlength="8">
+
+                <label for="amount">Montant (XOF):</label>
+                <input type="number" id="amount" name="amount" required min="500" max="500000">
+
+                <label for="country">Pays de destination:</label>
+                <select id="country" name="country" required>
+                    <option value="France">France</option>
+                    <option value="États-Unis">États-Unis</option>
+                    <option value="Royaume-Uni">Royaume-Uni</option>
+                    <option value="Burkina Faso">Burkina Faso</option>
+                    <option value="Sénégal">Sénégal</option>
+                </select>
+            `;
+            feesInfo.textContent = "Frais de transfert : 2% (hors XOF)";
+            feesInfo.classList.remove('hidden');
+        } else if (operationType === 'retrait') {
+            fieldsHTML = `
+                <label for="service">Service de retrait:</label>
+                <select id="service" name="service" required>
+                    <option value="Orange Money">Orange Money</option>
+                    <option value="Moov Money">Moov Money</option>
+                    <option value="Wave">Wave</option>
+                    <option value="Sank">Sank</option>
+                    <option value="MTN">MTN</option>
+                    <option value="Flooz">Flooz</option>
+                </select>
+
+                <label for="country">Pays de destination:</label>
+                <select id="country" name="country" required>
+                    <option value="France">France</option>
+                    <option value="États-Unis">États-Unis</option>
+                    <option value="Royaume-Uni">Royaume-Uni</option>
+                    <option value="Burkina Faso">Burkina Faso</option>
+                    <option value="Sénégal">Sénégal</option>
+                </select>
+
+                <label for="amount">Montant (XOF):</label>
+                <input type="number" id="amount" name="amount" required min="1000" max="1000000">
+
+                <label for="recipientPhone">Numéro de téléphone:</label>
+                <input type="tel" id="recipientPhone" name="recipientPhone" required minlength="8">
+            `;
+            feesInfo.textContent = "Frais de retrait : 2% (hors XOF)";
+            feesInfo.classList.remove('hidden');
+        } else if (operationType === 'internet') {
+            fieldsHTML = `
+                <label for="recipientPhone">Numéro du destinataire:</label>
+                <input type="tel" id="recipientPhone" name="recipientPhone" required minlength="8">
+
+                <label for="package">Forfait:</label>
+                <select id="package" name="package">
+                    <option value="1GB">1GB - 1000 XOF</option>
+                    <option value="3GB">3GB - 3000 XOF</option>
+                    <option value="5GB">5GB - 5000 XOF</option>
+                </select>
+            `;
+            feesInfo.classList.add('hidden');
+        } else if (operationType === 'credit') {
+            fieldsHTML = `
+                <label for="recipientPhone">Numéro du destinataire:</label>
+                <input type="tel" id="recipientPhone" name="recipientPhone" required minlength="8">
+
+                <label for="amount">Montant (XOF):</label>
+                <input type="number" id="amount" name="amount" required min="500" max="500000">
+            `;
+            feesInfo.classList.add('hidden');
+        }
+
+        dynamicFields.innerHTML = fieldsHTML;
+    });
+
+    // Soumission du formulaire d'opération
+    document.getElementById('operationForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const operationType = document.getElementById('operationType').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const recipientPhone = document.getElementById('recipientPhone') ? document.getElementById('recipientPhone').value : null;
+        const country = document.getElementById('country') ? document.getElementById('country').value : null;
+        const service = document.getElementById('service') ? document.getElementById('service').value : null;
+
+        // Validation des champs
+        if (!amount || (operationType.includes('transfert') && !recipientPhone)) {
+            showModal('error', 'Veuillez remplir tous les champs requis.');
+            return;
+        }
+
+        // Stocker l'opération en attente
+        pendingOperation = { operationType, amount, recipientPhone, country, service };
+
+        // Afficher la modal de code PIN
+        showPinModal();
+    });
+</script>
+
+</body>
+</html>
