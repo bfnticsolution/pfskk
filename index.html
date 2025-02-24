@@ -141,6 +141,24 @@
         .history-table th {
             background-color: #f2f2f2;
         }
+
+        .user-info {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.user-info p {
+    margin: 0;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.user-info strong {
+    color: #28a745;
+}
     </style>
 </head>
 <body>
@@ -156,39 +174,46 @@
     </div>
 
     <!-- Section Gestion de Compte (cachée par défaut) -->
-    <div id="account-section" class="hidden">
-        <h2>Gestion de Compte</h2>
+<div id="account-section" class="hidden">
+    <h2>Gestion de Compte</h2>
 
-        <!-- Section Solde -->
-        <div class="balance">
-            <h3>Solde Actuel</h3>
-            <p id="balanceAmount">0 XOF</p>
-        </div>
-
-        <!-- Bouton pour afficher l'historique -->
-        <button onclick="showHistoryModal()">Historique des opérations</button>
-
-        <!-- Formulaire pour les opérations -->
-        <form id="operationForm">
-            <label for="operationType">Type d'opération:</label>
-            <select id="operationType" name="operationType" required>
-                <option value="depot">Dépôt</option>
-                <option value="transfert-national">Transfert National</option>
-                <option value="transfert-international">Transfert International</option>
-                <option value="retrait">Retrait</option>
-                <option value="internet">Achat de Forfait Internet</option>
-                <option value="credit">Achat de Crédit d'Appel</option>
-            </select>
-
-            <!-- Champs dynamiques -->
-            <div id="dynamicFields"></div>
-
-            <!-- Affichage des frais de transfert -->
-            <div id="feesInfo" class="fees hidden"></div>
-
-            <button type="submit">Valider</button>
-        </form>
+    <!-- Informations de l'utilisateur -->
+    <div class="user-info">
+        <p><strong>Nom :</strong> <span id="userName"></span></p>
+        <p><strong>Téléphone :</strong> <span id="userPhone"></span></p>
     </div>
+
+    <!-- Section Solde -->
+    <div class="balance">
+        <h3>Solde Actuel</h3>
+        <p id="balanceAmount">0 XOF</p>
+    </div>
+
+    <!-- Bouton pour afficher l'historique -->
+    <button onclick="showHistoryModal()">Historique des opérations</button>
+
+    <!-- Formulaire pour les opérations -->
+    <form id="operationForm">
+        <label for="operationType">Type d'opération:</label>
+        <select id="operationType" name="operationType" required>
+            <option value="depot">Dépôt</option>
+            <option value="transfert-national">Transfert National</option>
+            <option value="transfert-international">Transfert International</option>
+            <option value="retrait">Retrait</option>
+            <option value="internet">Achat de Forfait Internet</option>
+            <option value="credit">Achat de Crédit d'Appel</option>
+        </select>
+
+        <!-- Champs dynamiques -->
+        <div id="dynamicFields"></div>
+
+        <!-- Affichage des frais de transfert -->
+        <div id="feesInfo" class="fees hidden"></div>
+
+        <button type="submit">Valider</button>
+    </form>
+</div>
+    
 </div>
 
 <!-- Modal pour afficher les messages -->
@@ -395,35 +420,39 @@
 
     // Fonction de connexion
     function loginUser() {
-        const phone = document.getElementById('login-phone').value;
-        const password = document.getElementById('login-password').value;
+    const phone = document.getElementById('login-phone').value;
+    const password = document.getElementById('login-password').value;
 
-        if (phone && password) {
-            fetch(apiUrl + `?action=login&phone=${phone}&password=${password}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        currentUser = data.user;
-                        document.getElementById('auth-section').classList.add('hidden');
-                        document.getElementById('account-section').classList.remove('hidden');
-                        updateBalance();
-                        fetchHistory(); // Charger l'historique
-                        showModal('success', 'Connexion réussie !');
-                    } else {
-                        showModal('error', 'Numéro ou mot de passe incorrect.');
-                    }
-                })
-                .catch(() => showModal('error', 'Erreur lors de la connexion.'));
-        } else {
-            showModal('error', 'Veuillez remplir tous les champs.');
-        }
+    if (phone && password) {
+        fetch(apiUrl + `?action=login&phone=${phone}&password=${password}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    currentUser = data.user;
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('account-section').classList.remove('hidden');
+                    updateUserInfo(currentUser); // Mettre à jour les informations de l'utilisateur
+                    fetchHistory(); // Charger l'historique
+                    showModal('success', 'Connexion réussie !');
+                } else {
+                    showModal('error', 'Numéro ou mot de passe incorrect.');
+                }
+            })
+            .catch(() => showModal('error', 'Erreur lors de la connexion.'));
+    } else {
+        showModal('error', 'Veuillez remplir tous les champs.');
     }
+}
 
     // Mettre à jour le solde affiché
     function updateBalance() {
         document.getElementById('balanceAmount').textContent = `${currentUser.balance.toFixed(2)} XOF`;
     }
-
+    function updateUserInfo(user) {
+    document.getElementById('userName').textContent = user.name; // Afficher le nom
+    document.getElementById('userPhone').textContent = user.phone; // Afficher le numéro de téléphone
+    document.getElementById('balanceAmount').textContent = `${user.balance.toFixed(2)} XOF`; // Afficher le solde
+}
     // Charger l'historique des opérations
     function fetchHistory() {
         fetch(apiUrl + `?action=getHistory&phone=${currentUser.phone}`)
